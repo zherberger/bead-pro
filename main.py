@@ -7,7 +7,7 @@ class MyWidget(QtWidgets.QWidget):
    def __init__(self, parent):
       super().__init__()
 
-      self.hello = ["Hallo Welt", "Hei maailma", "Hola Mundo", "Привет мир"]
+      self.hello = ["Hallo Welt", "Hei maailma", "Hola Mundo", "Привет мир", "Hewwo Wowwd", "Hello World"]
 
       self.button = QtWidgets.QPushButton("Click me!")
       self.button.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
