@@ -7,11 +7,11 @@ SRGB_XYZ_TRANSFORMATION_MATRIX = [
 ]
 
 EPSILON = 216.0 / 24839.0
-DELTA = 24839.0 / 27.0
+KAPPA = 24839.0 / 27.0
 
 # Standard illuminant D65
 X_W = 0.950489
-Y_W = 100.0
+Y_W = 1.0
 Z_W = 1.088840
 
 def srgb_to_xyz(srgb):
@@ -27,12 +27,32 @@ def srgb_to_xyz(srgb):
 
     return np.matmul(SRGB_XYZ_TRANSFORMATION_MATRIX, [R, G, B])
 
-# def xyz_to_lab(xyz):
+def xyz_to_lab(xyz):
+    def f(v):
+        if(v > EPSILON):
+            return v ** (1.0 / 3.0)
+        else:
+            return (KAPPA * v + 16.0) / 116.0
+    
+    fx = f(xyz[0] / X_W)
+    fy = f(xyz[1]) # Y / Y_W is simply Y / 1
+    fz = f(xyz[2] / Z_W)
 
-# def srgb_to_lab(srgb):
-#     return xyz_to_lab(srgb_to_xyz(srgb))
+    return [
+        116.0 * fy - 16.0,
+        500.0 * (fx - fy),
+        200.0 * (fy - fz),
+    ]
 
-# def lab_to_lch(lab):
+def srgb_to_lab(srgb):
+    return xyz_to_lab(srgb_to_xyz(srgb))
+
+def lab_to_lch(lab):
+    return [
+        lab[0],
+        np.hypot(lab[1], lab[2]),
+        np.arctan2(lab[2], lab[1]) * 360 / (2.0 * np.pi)
+    ]
 
 # def compute_color_distance(lab1, lab2):
 #     Lch1 = lab_to_lch(lab1)
