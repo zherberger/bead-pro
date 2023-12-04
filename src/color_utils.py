@@ -83,8 +83,6 @@ def compute_color_distance(lab1, lab2):
     C_BAR_PRIME = (C1_PRIME + C2_PRIME) / 2.0
     DELTA_C = C2_PRIME - C1_PRIME
 
-    h1 = lch1[2]
-    h2 = lch2[2]
     h1_prime = RADIANS_TO_DEGREES(np.arctan2(lab1[2], a1_prime)) % 360.0
     h2_prime = RADIANS_TO_DEGREES(np.arctan2(lab2[2], a2_prime)) % 360.0
     def calc_delta_h_prime(h1_prime, h2_prime):
