@@ -105,7 +105,7 @@ class MyView(QtWidgets.QGraphicsView):
       for i in range(len(pixels)):
          for j in range(len(pixels[0])):
             rgba = pixels[i][j]
-            self.scene.addRect(j*WIDTH+j, i*HEIGHT+i, WIDTH, HEIGHT, pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
+            self.scene.addRect(j*WIDTH, i*HEIGHT, WIDTH, HEIGHT, pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
 
             
 
