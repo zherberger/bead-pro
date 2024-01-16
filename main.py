@@ -21,27 +21,19 @@ class MyWidget(QtWidgets.QWidget):
       self.layout.addWidget(self.button)
 
       self.button.clicked.connect(self.magic)
-      parent.image_loaded.connect(self.show_image)
 
       scene = QtWidgets.QGraphicsScene()
       scene.setSceneRect(0, 0, 200, 200)
       text = scene.addText("Hello!")
 
-      view = MyView()
+      self.parent = parent
+
+      view = MyView(self)
       self.layout.addWidget(view)
-
-
 
    @QtCore.Slot()
    def magic(self):
       self.label.setText(random.choice(self.hello))
-
-   @QtCore.Slot()
-   def show_image(self, file_name):
-      label = QtWidgets.QLabel(self)
-      pixmap = QtGui.QPixmap(file_name)
-      label.setPixmap(pixmap)
-      self.layout.addWidget(label)
 
 class MainWindow(QtWidgets.QMainWindow):
    image_loaded = Signal(str)
@@ -64,7 +56,8 @@ class MainWindow(QtWidgets.QMainWindow):
    @QtCore.Slot()
    def open_image(self):
       file_name = QtWidgets.QFileDialog.getOpenFileName(self, "Open Image", "C:/", "Image Files (*.png)")
-      print(file_name)
+      print("Inside open_image")
+      print(file_name[0])
       self.image_loaded.emit(file_name[0])
 
 def window():
@@ -77,26 +70,23 @@ def window():
    sys.exit(app.exec())
 
 class MyView(QtWidgets.QGraphicsView):
-   def __init__(self):
+   def __init__(self, parent):
       QtWidgets.QGraphicsView.__init__(self)
       self.setGeometry(QtCore.QRect(100, 100, 600, 250))
-      
-
       self.scene = QtWidgets.QGraphicsScene(self)
       self.scene.setSceneRect(QtCore.QRectF())
-      self.scene.addText("Hello!")
-
       self.setScene(self.scene)
+      parent.parent.image_loaded.connect(self.draw_image)
 
-      cwd = os.getcwd()
-      print(cwd)
-
-      im = Image.open('Projects/bead-pro/resources/testimage.png')
+   @QtCore.Slot()
+   def draw_image(file_name):
+      print("Inside draw_image")
+      print(file_name)
+      im = Image.open(file_name)
 
       pixels = list(im.getdata())
       width, height = im.size
       pixels = [pixels[i * width:(i + 1) * width] for i in range(height)]
-
 
       WIDTH = 30
       HEIGHT = 30
