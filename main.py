@@ -6,7 +6,7 @@ from PySide6.QtCore import Signal
 from PIL import Image
 
 class MyWidget(QtWidgets.QWidget):
-   def __init__(self, parent):
+   def __init__(self, image_loaded):
       super().__init__()
 
       self.hello = ["Hallo Welt", "Hei maailma", "Hola Mundo", "Привет мир", "Hewwo Wowwd", "Hello World"]
@@ -26,9 +26,7 @@ class MyWidget(QtWidgets.QWidget):
       scene.setSceneRect(0, 0, 200, 200)
       text = scene.addText("Hello!")
 
-      self.parent = parent
-
-      view = MyView(self)
+      view = MyView(image_loaded)
       self.layout.addWidget(view)
 
    @QtCore.Slot()
@@ -42,7 +40,7 @@ class MainWindow(QtWidgets.QMainWindow):
       super().__init__()
 
       self.setWindowTitle("BeadPro")
-      main_widget = MyWidget(self)
+      main_widget = MyWidget(self.image_loaded)
       self.setCentralWidget(main_widget)
 
       open_icon = QtGui.QIcon.fromTheme("document-open", QtGui.QIcon(":/resources/folder_open.png"))
@@ -70,16 +68,16 @@ def window():
    sys.exit(app.exec())
 
 class MyView(QtWidgets.QGraphicsView):
-   def __init__(self, parent):
+   def __init__(self, image_loaded):
       QtWidgets.QGraphicsView.__init__(self)
       self.setGeometry(QtCore.QRect(100, 100, 600, 250))
       self.scene = QtWidgets.QGraphicsScene(self)
       self.scene.setSceneRect(QtCore.QRectF())
       self.setScene(self.scene)
-      parent.parent.image_loaded.connect(self.draw_image)
+      image_loaded.connect(self.draw_image)
 
    @QtCore.Slot()
-   def draw_image(file_name):
+   def draw_image(self, file_name):
       print("Inside draw_image")
       print(file_name)
       im = Image.open(file_name)
