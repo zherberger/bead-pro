@@ -3,16 +3,7 @@ import random
 import os
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtCore import Signal
-from components.bead_scene import BeadScene
-
-class MyWidget(QtWidgets.QWidget):
-   def __init__(self, image_loaded):
-      super().__init__()
-      
-      self.layout = QtWidgets.QVBoxLayout(self)
-
-      view = BeadScene(image_loaded)
-      self.layout.addWidget(view)
+from components.bead_scene import BeadScene, BeadWorkflow
 
 class MainWindow(QtWidgets.QMainWindow):
    image_loaded = Signal(str)
@@ -21,7 +12,7 @@ class MainWindow(QtWidgets.QMainWindow):
       super().__init__()
 
       self.setWindowTitle("BeadPro")
-      main_widget = MyWidget(self.image_loaded)
+      main_widget = BeadWorkflow(self.image_loaded)
       self.setCentralWidget(main_widget)
 
       open_icon = QtGui.QIcon.fromTheme("document-open", QtGui.QIcon(":/resources/folder_open.png"))
