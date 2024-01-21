@@ -3,7 +3,7 @@ import random
 import os
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtCore import Signal
-from components.bead_scene import BeadScene, BeadWorkflow
+from components.bead_scene import BeadWorkflow
 
 class MainWindow(QtWidgets.QMainWindow):
    image_loaded = Signal(str)

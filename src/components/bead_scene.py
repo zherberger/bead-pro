@@ -22,58 +22,39 @@ def get_closest_bead(rgb):
 class BeadWorkflow(QtWidgets.QWidget):
     def __init__(self, image_loaded):
         super().__init__()
+        self.layout = QtWidgets.QHBoxLayout(self)
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-        tabs = BeadTabs()
-        self.layout.addWidget(tabs)
-        scene = BeadScene(image_loaded, tabs.currentChanged)
-        self.layout.addWidget(scene)
+        self.tabs = QtWidgets.QTabWidget()
+        self.original_view = BeadView()
+        self.bead_view = BeadView()
+        self.tabs.addTab(self.original_view, "Original")
+        self.tabs.addTab(self.bead_view, "Beads")
+        self.layout.addWidget(self.tabs)
 
-class BeadTabs(QtWidgets.QTabBar):
-    def __init__(self):
-        super().__init__()
-        self.addTab("Original")
-        self.addTab("Beads")
+        self.bead_legend = BeadLegend([])
+        self.layout.addWidget(self.bead_legend)
 
-class BeadScene(QtWidgets.QGraphicsView):
-    def __init__(self, image_loaded, tab_changed):
-        QtWidgets.QGraphicsView.__init__(self)
-        self.setGeometry(QtCore.QRect(100, 100, 600, 250))
-        self.original_scene = QtWidgets.QGraphicsScene(self)
-        self.original_scene.setSceneRect(QtCore.QRectF())
-        self.bead_scene = QtWidgets.QGraphicsScene(self)
-        self.bead_scene.setSceneRect(QtCore.QRectF())
-        self.setScene(self.bead_scene)
         image_loaded.connect(self.load_image)
-        tab_changed.connect(self.change_tab)
 
     @QtCore.Slot()
     def load_image(self, file_name):
         im = Image.open(file_name)
-
         pixels = list(im.getdata())
         width, height = im.size
         pixels = [pixels[i * width:(i + 1) * width] for i in range(height)]
         self.image_data = pixels
         self.bead_matches = self.generate_bead_matches()
-        self.draw_image("original")
-        self.draw_image("bead")
+        self.original_view.draw_image(self.image_data)
+        bead_data = []
+        rowNum = 0
 
-    def draw_image(self, mode):
-        WIDTH = 30
-        HEIGHT = 30
-        pen = QtGui.QPen()
-        pen.setStyle(QtCore.Qt.PenStyle.NoPen)
+        for row in self.image_data:
+            bead_data.append([])
+            for pixel in row:
+                bead_data[rowNum].append(self.bead_matches.get(get_hex_key(pixel))["rgb"])
+            rowNum += 1
 
-        for i in range(len(self.image_data)):
-            for j in range(len(self.image_data[0])):
-                rgba = self.image_data[i][j]
-
-                if mode == "original":
-                    self.original_scene.addRect(j*WIDTH, i*HEIGHT, WIDTH, HEIGHT, pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
-                elif mode == "bead":
-                    bead_match_color = self.bead_matches[get_hex_key(rgba)]["rgb"]
-                    self.bead_scene.addRect(j*WIDTH, i*HEIGHT, WIDTH, HEIGHT, pen, QtGui.QBrush(QtGui.QColor(bead_match_color[0], bead_match_color[1], bead_match_color[2])))
+        self.bead_view.draw_image(bead_data)
 
     def generate_bead_matches(self):
         bead_matches = {}
@@ -87,6 +68,39 @@ class BeadScene(QtWidgets.QGraphicsView):
                     bead_matches[key] = get_closest_bead(rgb)
 
         return bead_matches
-    
-    def change_tab(self, index):
-        self.setScene(self.original_scene if index == 0 else self.bead_scene)
+
+class BeadLegend(QtWidgets.QWidget):
+    def __init__(self, bead_colors):
+        super().__init__()
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        for bead in bead_colors:
+            label = QtWidgets.QLabel(bead["name"])
+            self.layout.addWidget(label)
+
+        label = QtWidgets.QLabel("Hello World")
+        self.layout.addWidget(label)
+
+class BeadTabs(QtWidgets.QTabBar):
+    def __init__(self):
+        super().__init__()
+        self.addTab("Original")
+        self.addTab("Beads")
+
+class BeadView(QtWidgets.QGraphicsView):
+    def __init__(self):
+        QtWidgets.QGraphicsView.__init__(self)
+        self.setGeometry(QtCore.QRect(100, 100, 600, 250))
+        self.scene = QtWidgets.QGraphicsScene(self)
+        self.scene.setSceneRect(QtCore.QRectF())
+        self.setScene(self.scene)
+        self.pen = QtGui.QPen()
+        self.pen.setStyle(QtCore.Qt.PenStyle.NoPen)
+        self.PIXEL_WIDTH = 30
+        self.PIXEL_HEIGHT = 30
+
+    def draw_image(self, image_data):
+        for i in range(len(image_data)):
+            for j in range(len(image_data[0])):
+                rgba = image_data[i][j]
+                self.scene.addRect(j*self.PIXEL_WIDTH, i*self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT, self.pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
