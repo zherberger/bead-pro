@@ -81,12 +81,6 @@ class BeadLegend(QtWidgets.QWidget):
         label = QtWidgets.QLabel("Hello World")
         self.layout.addWidget(label)
 
-class BeadTabs(QtWidgets.QTabBar):
-    def __init__(self):
-        super().__init__()
-        self.addTab("Original")
-        self.addTab("Beads")
-
 class BeadView(QtWidgets.QGraphicsView):
     def __init__(self):
         QtWidgets.QGraphicsView.__init__(self)
