@@ -3,6 +3,7 @@ from PIL import Image
 from color_utils import srgb_to_lab
 from color_utils import compute_color_distance
 from bead_colors import PERLER_BEADS
+from PySide6.QtCore import Signal
 
 def get_hex_key(rgb):
     return '#%02x%02x%02x' % (rgb[0], rgb[1], rgb[2])
@@ -20,6 +21,7 @@ def get_closest_bead(rgb):
     return closest_match
 
 class BeadWorkflow(QtWidgets.QWidget):
+    bead_matches_obtained = Signal(object)
     def __init__(self, image_loaded):
         super().__init__()
         self.layout = QtWidgets.QHBoxLayout(self)
@@ -31,7 +33,7 @@ class BeadWorkflow(QtWidgets.QWidget):
         self.tabs.addTab(self.bead_view, "Beads")
         self.layout.addWidget(self.tabs)
 
-        self.bead_legend = BeadLegend([])
+        self.bead_legend = BeadLegend(self.bead_matches_obtained)
         self.layout.addWidget(self.bead_legend)
 
         image_loaded.connect(self.load_image)
@@ -53,7 +55,7 @@ class BeadWorkflow(QtWidgets.QWidget):
             for pixel in row:
                 bead_data[rowNum].append(self.bead_matches.get(get_hex_key(pixel))["rgb"])
             rowNum += 1
-
+        self.bead_matches_obtained.emit(self.bead_matches)
         self.bead_view.draw_image(bead_data)
 
     def generate_bead_matches(self):
@@ -72,14 +74,26 @@ class BeadWorkflow(QtWidgets.QWidget):
 class BeadLegend(QtWidgets.QWidget):
     def __init__(self, bead_colors):
         super().__init__()
-
+        bead_colors.connect(self.updateLegend)
         self.layout = QtWidgets.QVBoxLayout(self)
-        for bead in bead_colors:
-            label = QtWidgets.QLabel(bead["name"])
-            self.layout.addWidget(label)
+    
+    @QtCore.Slot()
+    def updateLegend(self, bead_matches):
+        print(bead_matches)
+        values = bead_matches.values()
 
-        label = QtWidgets.QLabel("Hello World")
-        self.layout.addWidget(label)
+        for bead in values:
+            widget = QtWidgets.QWidget()
+            widget.layout = QtWidgets.QHBoxLayout()
+            pixmap = QtGui.QPixmap(15,15)
+            color = QtGui.QColor.fromRgb(bead["rgb"][0], bead["rgb"][1], bead["rgb"][2])
+            pixmap.fill(color)
+            nameLabel = QtWidgets.QLabel(bead["name"])
+            colorLabel = QtWidgets.QLabel()
+            colorLabel.setPixmap(pixmap)
+            widget.layout.addWidget(colorLabel)
+            widget.layout.addWidget(nameLabel)
+            self.layout.addWidget(widget)
 
 class BeadView(QtWidgets.QGraphicsView):
     def __init__(self):
