@@ -1,52 +1,44 @@
 import sys
-import random
-import os
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtCore import Signal
-from components.bead_scene import BeadScene
+from src.components.bead_scene import BeadWorkflow
 
-class MyWidget(QtWidgets.QWidget):
-   def __init__(self, image_loaded):
-      super().__init__()
-      
-      self.layout = QtWidgets.QVBoxLayout(self)
-
-      view = BeadScene(image_loaded)
-      self.layout.addWidget(view)
 
 class MainWindow(QtWidgets.QMainWindow):
-   image_loaded = Signal(str)
+    image_loaded = Signal(str)
 
-   def __init__(self):
-      super().__init__()
+    def __init__(self):
+        super().__init__()
 
-      self.setWindowTitle("BeadPro")
-      main_widget = MyWidget(self.image_loaded)
-      self.setCentralWidget(main_widget)
+        self.setWindowTitle("BeadPro")
+        main_widget = BeadWorkflow(self.image_loaded)
+        self.setCentralWidget(main_widget)
 
-      open_icon = QtGui.QIcon.fromTheme("document-open", QtGui.QIcon(":/resources/folder_open.png"))
-      open_action = QtGui.QAction(open_icon, "&Open", self)
-      open_action.triggered.connect(self.open_image)
+        open_icon = QtGui.QIcon.fromTheme("document-open", QtGui.QIcon(":/resources/folder_open.png"))
+        open_action = QtGui.QAction(open_icon, "&Open", self)
+        open_action.triggered.connect(self.open_image)
 
-      menu = self.menuBar()
-      file_menu = menu.addMenu("&File")
-      file_menu.addAction(open_action)
+        menu = self.menuBar()
+        file_menu = menu.addMenu("&File")
+        file_menu.addAction(open_action)
 
-   @QtCore.Slot()
-   def open_image(self):
-      file_tuple = QtWidgets.QFileDialog.getOpenFileName(self, "Open Image", "C:/", "Image Files (*.png)")
-      
-      # On image load, emit the image_loaded signal with the absolute path of the file, which can be picked up by other components (namely, the BeadScene)
-      self.image_loaded.emit(file_tuple[0])
+    @QtCore.Slot()
+    def open_image(self):
+        file_tuple = QtWidgets.QFileDialog.getOpenFileName(self, "Open Image", "C:/", "Image Files (*.png)")
+
+        # On image load, emit the image_loaded signal with the absolute path of the file, which can be picked up by other components (namely, the BeadScene)
+        self.image_loaded.emit(file_tuple[0])
+
 
 def window():
-   app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication([])
 
-   window = MainWindow()
-   window.resize(800, 600)
-   window.show()
+    window = MainWindow()
+    window.resize(800, 600)
+    window.show()
 
-   sys.exit(app.exec())
+    sys.exit(app.exec())
+
 
 if __name__ == '__main__':
-   window()
+    window()

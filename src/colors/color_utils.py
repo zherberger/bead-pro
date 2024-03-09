@@ -14,34 +14,38 @@ X_W = 0.950489
 Y_W = 1.0
 Z_W = 1.088840
 
+
 def DEGREES_TO_RADIANS(deg):
     return 2 * np.pi * deg / 360.0
+
 
 def RADIANS_TO_DEGREES(rad):
     return rad * 360.0 / (2 * np.pi)
 
+
 def srgb_to_xyz(srgb):
     def gamma_expansion(value255):
-        if(value255 <= 10):
+        if (value255 <= 10):
             return float(value255) / 3294.6
-        else :
+        else:
             return ((float(value255) + 14.025) / 269.025) ** 2.4
-        
+
     R = gamma_expansion(srgb[0])
     G = gamma_expansion(srgb[1])
     B = gamma_expansion(srgb[2])
 
     return np.matmul(SRGB_XYZ_TRANSFORMATION_MATRIX, [R, G, B])
 
+
 def xyz_to_lab(xyz):
     def f(v):
-        if(v > EPSILON):
+        if (v > EPSILON):
             return v ** (1.0 / 3.0)
         else:
             return (KAPPA * v + 16.0) / 116.0
-    
+
     fx = f(xyz[0] / X_W)
-    fy = f(xyz[1]) # Y / Y_W is simply Y / 1
+    fy = f(xyz[1])  # Y / Y_W is simply Y / 1
     fz = f(xyz[2] / Z_W)
 
     return [
@@ -50,12 +54,14 @@ def xyz_to_lab(xyz):
         200.0 * (fy - fz),
     ]
 
+
 def srgb_to_lab(srgb):
     return xyz_to_lab(srgb_to_xyz(srgb))
 
+
 def lab_to_lch(lab):
     h = RADIANS_TO_DEGREES(np.arctan2(lab[2], lab[1]))
-    if(h < 0.0):
+    if (h < 0.0):
         h = 360.0 + h
 
     return [
@@ -63,6 +69,7 @@ def lab_to_lch(lab):
         np.hypot(lab[1], lab[2]),
         h
     ]
+
 
 def compute_color_distance(lab1, lab2):
     lch1 = lab_to_lch(lab1)
@@ -85,25 +92,26 @@ def compute_color_distance(lab1, lab2):
 
     h1_prime = RADIANS_TO_DEGREES(np.arctan2(lab1[2], a1_prime)) % 360.0
     h2_prime = RADIANS_TO_DEGREES(np.arctan2(lab2[2], a2_prime)) % 360.0
+
     def calc_delta_h_prime(h1_prime, h2_prime):
         abs_diff = np.abs(h1_prime - h2_prime)
 
-        if(abs_diff <= 180.0):
+        if (abs_diff <= 180.0):
             return h2_prime - h1_prime
-        elif(abs_diff > 180.0 and h2_prime <= h1_prime):
+        elif (abs_diff > 180.0 and h2_prime <= h1_prime):
             return h2_prime - h1_prime + 360.0
         else:
             return h2_prime - h1_prime - 360.0
-        
+
     delta_h_prime = calc_delta_h_prime(h1_prime, h2_prime)
     DELTA_H = 2 * np.sqrt(C1_PRIME * C2_PRIME) * np.sin(DEGREES_TO_RADIANS(delta_h_prime / 2.0))
-    
+
     H_BAR_PRIME = 0.0
     abs_diff = np.abs(h1_prime - h2_prime)
 
-    if(abs_diff <= 180.0):
+    if (abs_diff <= 180.0):
         H_BAR_PRIME = (h1_prime + h2_prime) / 2.0
-    elif(abs_diff > 180.0 and h1_prime + h2_prime < 360.0):
+    elif (abs_diff > 180.0 and h1_prime + h2_prime < 360.0):
         H_BAR_PRIME = (h1_prime + h2_prime + 360.0) / 2.0
     else:
         H_BAR_PRIME = (h1_prime + h2_prime - 360.0) / 2.0
@@ -117,9 +125,10 @@ def compute_color_distance(lab1, lab2):
     S_L = 1 + (0.015 * (L_BAR - 50.0) ** 2) / (np.sqrt(20.0 + (L_BAR - 50) ** 2))
     S_C = 1 + 0.045 * C_BAR_PRIME
     S_H = 1 + 0.015 * C_BAR_PRIME * T
-    R_T = -2 * np.sqrt(C_BAR_PRIME ** 7 / (C_BAR_PRIME ** 7 + 25.0 ** 7)) * np.sin(DEGREES_TO_RADIANS(60 * np.exp(-1 * ((H_BAR_PRIME - 275) / 25) ** 2)))
+    R_T = -2 * np.sqrt(C_BAR_PRIME ** 7 / (C_BAR_PRIME ** 7 + 25.0 ** 7)) * np.sin(
+        DEGREES_TO_RADIANS(60 * np.exp(-1 * ((H_BAR_PRIME - 275) / 25) ** 2)))
 
-    return np.sqrt(\
+    return np.sqrt( \
         (DELTA_L / S_L) ** 2 \
         + (DELTA_C / S_C) ** 2 \
         + (DELTA_H / S_H) ** 2 \
