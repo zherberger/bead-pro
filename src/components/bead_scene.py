@@ -1,12 +1,14 @@
 from PySide6 import QtCore, QtWidgets, QtGui
 from PIL import Image
-from color_utils import srgb_to_lab
-from color_utils import compute_color_distance
-from bead_colors import PERLER_BEADS
+from src.colors.color_utils import srgb_to_lab
+from src.colors.color_utils import compute_color_distance
+from src.colors.bead_colors import PERLER_BEADS
 from PySide6.QtCore import Signal
+
 
 def get_hex_key(rgb):
     return '#%02x%02x%02x' % (rgb[0], rgb[1], rgb[2])
+
 
 def get_closest_bead(rgb):
     min_distance = 100.0
@@ -20,10 +22,15 @@ def get_closest_bead(rgb):
 
     return closest_match
 
+
 class BeadWorkflow(QtWidgets.QWidget):
     bead_matches_obtained = Signal(object)
+
     def __init__(self, image_loaded):
         super().__init__()
+        self.bead_matches = None
+        self.image_data = None
+        self.bead_legend = None
         self.layout = QtWidgets.QHBoxLayout(self)
 
         self.tabs = QtWidgets.QTabWidget()
@@ -33,8 +40,7 @@ class BeadWorkflow(QtWidgets.QWidget):
         self.tabs.addTab(self.bead_view, "Beads")
         self.layout.addWidget(self.tabs)
 
-        self.bead_legend = BeadLegend(self.bead_matches_obtained)
-        self.layout.addWidget(self.bead_legend)
+        self.bead_matches_obtained.connect(self.update_legend)
 
         image_loaded.connect(self.load_image)
 
@@ -48,13 +54,13 @@ class BeadWorkflow(QtWidgets.QWidget):
         self.bead_matches = self.generate_bead_matches()
         self.original_view.draw_image(self.image_data)
         bead_data = []
-        rowNum = 0
+        row_num = 0
 
         for row in self.image_data:
             bead_data.append([])
             for pixel in row:
-                bead_data[rowNum].append(self.bead_matches.get(get_hex_key(pixel))["rgb"])
-            rowNum += 1
+                bead_data[row_num].append(self.bead_matches.get(get_hex_key(pixel))["rgb"])
+            row_num += 1
         self.bead_matches_obtained.emit(self.bead_matches)
         self.bead_view.draw_image(bead_data)
 
@@ -71,29 +77,29 @@ class BeadWorkflow(QtWidgets.QWidget):
 
         return bead_matches
 
-class BeadLegend(QtWidgets.QWidget):
-    def __init__(self, bead_colors):
-        super().__init__()
-        bead_colors.connect(self.updateLegend)
-        self.layout = QtWidgets.QVBoxLayout(self)
-    
-    @QtCore.Slot()
-    def updateLegend(self, bead_matches):
-        print(bead_matches)
+    def update_legend(self, bead_matches):
         values = bead_matches.values()
+        if self.bead_legend is not None:
+            self.layout.removeWidget(self.bead_legend)
+        bead_legend = QtWidgets.QWidget()
+        bead_legend.layout = QtWidgets.QVBoxLayout(bead_legend)
 
         for bead in values:
             widget = QtWidgets.QWidget()
-            widget.layout = QtWidgets.QHBoxLayout()
-            pixmap = QtGui.QPixmap(15,15)
+            widget.layout = QtWidgets.QHBoxLayout(widget)
+            pixmap = QtGui.QPixmap(15, 15)
             color = QtGui.QColor.fromRgb(bead["rgb"][0], bead["rgb"][1], bead["rgb"][2])
             pixmap.fill(color)
-            nameLabel = QtWidgets.QLabel(bead["name"])
-            colorLabel = QtWidgets.QLabel()
-            colorLabel.setPixmap(pixmap)
-            widget.layout.addWidget(colorLabel)
-            widget.layout.addWidget(nameLabel)
-            self.layout.addWidget(widget)
+            name_label = QtWidgets.QLabel(bead["name"])
+            color_label = QtWidgets.QLabel()
+            color_label.setPixmap(pixmap)
+            widget.layout.addWidget(color_label)
+            widget.layout.addWidget(name_label)
+            bead_legend.layout.addWidget(widget)
+
+        self.bead_legend = bead_legend
+        self.layout.addWidget(self.bead_legend)
+
 
 class BeadView(QtWidgets.QGraphicsView):
     def __init__(self):
@@ -111,4 +117,5 @@ class BeadView(QtWidgets.QGraphicsView):
         for i in range(len(image_data)):
             for j in range(len(image_data[0])):
                 rgba = image_data[i][j]
-                self.scene.addRect(j*self.PIXEL_WIDTH, i*self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT, self.pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
+                self.scene.addRect(j * self.PIXEL_WIDTH, i * self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT,
+                                   self.pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
