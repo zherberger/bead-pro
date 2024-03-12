@@ -14,6 +14,11 @@ X_W = 0.950489
 Y_W = 1.0
 Z_W = 1.088840
 
+# Standard illuminant D50
+X_D50 = 0.96422
+Y_D50 = 1.0
+Z_D50 = 0.82521
+
 
 def degrees_to_radians(deg):
     return 2 * np.pi * deg / 360.0

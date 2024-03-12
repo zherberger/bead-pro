@@ -101,6 +101,10 @@ class BeadLegend(QtWidgets.QWidget):
     @QtCore.Slot()
     def populate_legend(self, bead_matches):
         values = bead_matches.values()
+        while self.layout.count():
+            child = self.layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
 
         for bead in values:
             legend_entry = QtWidgets.QWidget()
