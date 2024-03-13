@@ -24,6 +24,17 @@ def get_closest_bead(rgb):
     return closest_match
 
 
+def get_all_bead_matches(rgb):
+    matches = []
+
+    for bead in PERLER_BEADS:
+        distance = compute_color_distance(srgb_to_lab(bead["rgb"]), srgb_to_lab(rgb))
+        matches.append({**bead, "distance": distance})
+
+    matches.sort(key=lambda match: match["distance"])
+    return matches
+
+
 class BeadWorkflow(QtWidgets.QWidget):
     bead_matches_obtained = Signal(object)
 
@@ -107,24 +118,62 @@ class BeadLegend(QtWidgets.QWidget):
                 child.widget().deleteLater()
 
         for bead in values:
-            legend_entry = QtWidgets.QWidget()
-            legend_entry_layout = QtWidgets.QHBoxLayout(legend_entry)
-            legend_entry_layout.setSpacing(0)
-            legend_entry_layout.setContentsMargins(0, 0, 0, 0)
-            legend_entry_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-            legend_entry.layout = legend_entry_layout
+            self.layout.addWidget(BeadLegendEntry(bead))
 
-            pixmap = QtGui.QPixmap(15, 15)
-            color = QtGui.QColor.fromRgb(bead["rgb"][0], bead["rgb"][1], bead["rgb"][2])
-            pixmap.fill(color)
-            name_label = QtWidgets.QLabel(f"{bead['name']} ({bead['count']})")
-            name_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-            color_label = QtWidgets.QLabel()
-            color_label.setPixmap(pixmap)
-            color_label.setMargin(6)
-            legend_entry.layout.addWidget(color_label)
-            legend_entry.layout.addWidget(name_label)
-            self.layout.addWidget(legend_entry)
+
+class BeadLabel(QtWidgets.QWidget):
+    def __init__(self, bead):
+        super().__init__()
+        self.bead = bead
+        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.layout.setSpacing(0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
+        pixmap = QtGui.QPixmap(15, 15)
+        color = QtGui.QColor.fromRgb(bead["rgb"][0], bead["rgb"][1], bead["rgb"][2])
+        pixmap.fill(color)
+        name_label = QtWidgets.QLabel(f"{bead['name']} ({bead.get('count') if bead.get('count') is not None else ''})")
+        name_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        color_label = QtWidgets.QLabel()
+        color_label.setPixmap(pixmap)
+        color_label.setMargin(6)
+        self.layout.addWidget(color_label)
+        self.layout.addWidget(name_label)
+
+
+class BeadAction(QtWidgets.QWidgetAction):
+    def __init__(self, bead, parent=None):
+        super().__init__(parent)
+        self.bead = bead
+        self.setDefaultWidget(BeadLabel(bead))
+
+    def identify(self):
+        print(self.bead["name"])
+
+
+class BeadLegendEntry(BeadLabel):
+    def __init__(self, bead):
+        super().__init__(bead)
+
+    def get_bead_choices(self):
+        matches = get_all_bead_matches(self.bead["rgb"])
+        actions = []
+
+        for i in range(10):
+            action = BeadAction(matches[i])
+            action.triggered.connect(lambda: print(matches[i]["name"]))
+            actions.append(action)
+        return actions
+
+    def contextMenuEvent(self, event):
+        menu = QtWidgets.QMenu(self)
+        choices = self.get_bead_choices()
+        for choice in choices:
+            menu.addAction(choice)
+        action = menu.exec_(self.mapToGlobal(event.pos()))
+        if(action is not None):
+            action.identify()
 
 
 class BeadView(QtWidgets.QGraphicsView):
