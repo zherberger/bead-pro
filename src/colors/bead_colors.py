@@ -372,3 +372,5 @@ PERLER_BEADS = [
         "rgb": [179, 238, 213]
     },
 ]
+
+PERLER_BEADS_MAP = {bead["name"]: bead for bead in PERLER_BEADS}

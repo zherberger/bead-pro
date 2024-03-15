@@ -2,7 +2,7 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from PIL import Image
 from src.colors.color_utils import srgb_to_lab
 from src.colors.color_utils import compute_color_distance
-from src.colors.bead_colors import PERLER_BEADS
+from src.colors.bead_colors import PERLER_BEADS, PERLER_BEADS_MAP
 from PySide6.QtCore import Signal
 
 
@@ -41,6 +41,7 @@ class BeadWorkflow(QtWidgets.QWidget):
     def __init__(self, image_loaded):
         super().__init__()
         self.bead_matches = None
+        self.bead_data = None
         self.image_data = None
         self.bead_legend = None
         self.layout = QtWidgets.QHBoxLayout(self)
@@ -69,18 +70,21 @@ class BeadWorkflow(QtWidgets.QWidget):
         self.image_data = pixels
         self.bead_matches = self.generate_bead_matches()
         self.original_view.draw_image(self.image_data)
-        bead_data = []
+        self.bead_data = []
         row_num = 0
 
         for row in self.image_data:
-            bead_data.append([])
+            self.bead_data.append([])
             for pixel in row:
-                bead_data[row_num].append(self.bead_matches.get(get_hex_key(pixel))["rgb"])
+                self.bead_data[row_num].append(PERLER_BEADS_MAP[self.bead_matches.get(get_hex_key(pixel))["name"]]["rgb"])
             row_num += 1
 
-        self.bead_view.draw_image(bead_data)
+        self.bead_view.draw_image(self.bead_data)
         self.bead_matches_obtained.emit(self.bead_matches)
         self.tabs.setCurrentIndex(1)
+
+    def redraw_image(self):
+        self.bead_view.draw_image(self.bead_data)
 
     def generate_bead_matches(self):
         bead_matches = {}
@@ -91,8 +95,7 @@ class BeadWorkflow(QtWidgets.QWidget):
                 key = get_hex_key(rgb)
 
                 if bead_matches.get(key) is None:
-                    bead_matches[key] = get_closest_bead(rgb)
-                    bead_matches[key]["count"] = 1
+                    bead_matches[key] = {"name": get_closest_bead(rgb)["name"], "count": 1}
                 else:
                     bead_matches[key]["count"] += 1
 
@@ -116,24 +119,31 @@ class BeadLegend(QtWidgets.QWidget):
             child = self.layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
+        bead_color_counts = {}
 
-        for bead in values:
-            self.layout.addWidget(BeadLegendEntry(bead))
+        for bead_match in values:
+            if bead_color_counts.get(bead_match["name"]) is None:
+                bead_color_counts[bead_match["name"]] = bead_match["count"]
+            else:
+                bead_color_counts[bead_match["name"]] += bead_match["count"]
+
+        for color in bead_color_counts:
+            self.layout.addWidget(BeadLegendEntry(color, bead_color_counts[color]))
 
 
 class BeadLabel(QtWidgets.QWidget):
-    def __init__(self, bead):
+    def __init__(self, bead_name, count=None):
         super().__init__()
-        self.bead = bead
+        self.bead = PERLER_BEADS_MAP[bead_name]
         self.layout = QtWidgets.QHBoxLayout(self)
         self.layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         pixmap = QtGui.QPixmap(15, 15)
-        color = QtGui.QColor.fromRgb(bead["rgb"][0], bead["rgb"][1], bead["rgb"][2])
+        color = QtGui.QColor.fromRgb(self.bead["rgb"][0], self.bead["rgb"][1], self.bead["rgb"][2])
         pixmap.fill(color)
-        name_label = QtWidgets.QLabel(f"{bead['name']} ({bead.get('count') if bead.get('count') is not None else ''})")
+        name_label = QtWidgets.QLabel(f"{self.bead['name']} {'(' + str(count) + ')' if count is not None else ''}")
         name_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         color_label = QtWidgets.QLabel()
         color_label.setPixmap(pixmap)
@@ -143,26 +153,25 @@ class BeadLabel(QtWidgets.QWidget):
 
 
 class BeadAction(QtWidgets.QWidgetAction):
-    def __init__(self, bead, parent=None):
+    def __init__(self, bead_name, parent=None):
         super().__init__(parent)
-        self.bead = bead
-        self.setDefaultWidget(BeadLabel(bead))
+        self.bead_name = bead_name
+        self.setDefaultWidget(BeadLabel(bead_name))
 
     def identify(self):
-        print(self.bead["name"])
+        print(self.bead_name)
 
 
 class BeadLegendEntry(BeadLabel):
-    def __init__(self, bead):
-        super().__init__(bead)
+    def __init__(self, bead_name, count=None):
+        super().__init__(bead_name, count)
 
     def get_bead_choices(self):
         matches = get_all_bead_matches(self.bead["rgb"])
         actions = []
 
         for i in range(10):
-            action = BeadAction(matches[i])
-            action.triggered.connect(lambda: print(matches[i]["name"]))
+            action = BeadAction(matches[i]["name"])
             actions.append(action)
         return actions
 
@@ -187,6 +196,8 @@ class BeadView(QtWidgets.QGraphicsView):
         self.pen.setStyle(QtCore.Qt.PenStyle.NoPen)
         self.PIXEL_WIDTH = 30
         self.PIXEL_HEIGHT = 30
+        self.BACKGROUND_PIXEL_WIDTH = 12
+        self.BACKGROUND_PIXEL_HEIGHT = 12
 
     def draw_image(self, image_data):
         for i in range(len(image_data)):
