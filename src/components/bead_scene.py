@@ -37,6 +37,7 @@ def get_all_bead_matches(rgb):
 
 class BeadWorkflow(QtWidgets.QWidget):
     bead_matches_obtained = Signal(object)
+    bead_color_overridden = Signal(str, str)
 
     def __init__(self, image_loaded):
         super().__init__()
@@ -44,6 +45,7 @@ class BeadWorkflow(QtWidgets.QWidget):
         self.bead_data = None
         self.image_data = None
         self.bead_legend = None
+        self.bead_color_overrides = {}
         self.layout = QtWidgets.QHBoxLayout(self)
 
         self.original_view = BeadView()
@@ -52,7 +54,7 @@ class BeadWorkflow(QtWidgets.QWidget):
         bead_widget = QtWidgets.QWidget()
         bead_widget_layout = QtWidgets.QHBoxLayout(bead_widget)
         bead_widget_layout.addWidget(self.bead_view)
-        bead_widget_layout.addWidget(BeadLegend(self.bead_matches_obtained))
+        bead_widget_layout.addWidget(BeadLegend(self.bead_matches_obtained, self.bead_color_overridden))
         bead_widget.setLayout(bead_widget_layout)
         image_loaded.connect(self.load_image)
 
@@ -60,6 +62,8 @@ class BeadWorkflow(QtWidgets.QWidget):
         self.tabs.addTab(self.original_view, "Original")
         self.tabs.addTab(bead_widget, "Beads")
         self.layout.addWidget(self.tabs)
+
+        self.bead_color_overridden.connect(self.replace_bead_color)
 
     @QtCore.Slot()
     def load_image(self, file_name):
@@ -69,6 +73,9 @@ class BeadWorkflow(QtWidgets.QWidget):
         pixels = [pixels[i * width:(i + 1) * width] for i in range(height)]
         self.image_data = pixels
         self.bead_matches = self.generate_bead_matches()
+        self.draw_image()
+
+    def draw_image(self):
         self.original_view.draw_image(self.image_data)
         self.bead_data = []
         row_num = 0
@@ -76,15 +83,34 @@ class BeadWorkflow(QtWidgets.QWidget):
         for row in self.image_data:
             self.bead_data.append([])
             for pixel in row:
-                self.bead_data[row_num].append(PERLER_BEADS_MAP[self.bead_matches.get(get_hex_key(pixel))["name"]]["rgb"])
+                match = self.bead_matches.get(get_hex_key(pixel))["name"]
+                if self.bead_color_overrides.get(match) is not None:
+                    match = self.bead_color_overrides.get(match)
+
+                self.bead_data[row_num].append(PERLER_BEADS_MAP[match]["rgb"])
             row_num += 1
 
         self.bead_view.draw_image(self.bead_data)
-        self.bead_matches_obtained.emit(self.bead_matches)
+
+        legend_entries = self.bead_matches.values()
+        for entry in legend_entries:
+            if self.bead_color_overrides.get(entry["name"]) is not None:
+                entry["name"] = self.bead_color_overrides.get(entry["name"])
+        self.bead_matches_obtained.emit(legend_entries)
+
         self.tabs.setCurrentIndex(1)
 
-    def redraw_image(self):
-        self.bead_view.draw_image(self.bead_data)
+    def replace_bead_color(self, orig_bead_name, new_bead_name):
+        print(f"{orig_bead_name} replaced by {new_bead_name}")
+        filtered_overrides = {}
+
+        # Get rid of any existing mappings to the original color, to prevent looping through override mappings.
+        for key, value in self.bead_color_overrides.items():
+            if value != orig_bead_name:
+                filtered_overrides[key] = value
+        self.bead_color_overrides = filtered_overrides
+        self.bead_color_overrides[orig_bead_name] = new_bead_name
+        self.draw_image()
 
     def generate_bead_matches(self):
         bead_matches = {}
@@ -103,7 +129,7 @@ class BeadWorkflow(QtWidgets.QWidget):
 
 
 class BeadLegend(QtWidgets.QWidget):
-    def __init__(self, bead_matches_obtained):
+    def __init__(self, bead_matches_obtained, bead_color_overridden):
         super().__init__()
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
@@ -111,24 +137,27 @@ class BeadLegend(QtWidgets.QWidget):
         self.layout.setSpacing(0)
         self.bead_matches_obtained = bead_matches_obtained
         self.bead_matches_obtained.connect(self.populate_legend)
+        self.bead_color_overridden = bead_color_overridden
 
     @QtCore.Slot()
     def populate_legend(self, bead_matches):
-        values = bead_matches.values()
         while self.layout.count():
             child = self.layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
         bead_color_counts = {}
 
-        for bead_match in values:
+        for bead_match in bead_matches:
             if bead_color_counts.get(bead_match["name"]) is None:
                 bead_color_counts[bead_match["name"]] = bead_match["count"]
             else:
                 bead_color_counts[bead_match["name"]] += bead_match["count"]
 
-        for color in bead_color_counts:
-            self.layout.addWidget(BeadLegendEntry(color, bead_color_counts[color]))
+        sorted_color_counts = list(bead_color_counts.items())
+        sorted_color_counts.sort(key=lambda x: x[1], reverse=True)
+
+        for entry in sorted_color_counts:
+            self.layout.addWidget(BeadLegendEntry(entry[0], entry[1], self.bead_color_overridden))
 
 
 class BeadLabel(QtWidgets.QWidget):
@@ -163,8 +192,9 @@ class BeadAction(QtWidgets.QWidgetAction):
 
 
 class BeadLegendEntry(BeadLabel):
-    def __init__(self, bead_name, count=None):
+    def __init__(self, bead_name, count=None, bead_color_overridden=None):
         super().__init__(bead_name, count)
+        self.bead_color_overridden = bead_color_overridden
 
     def get_bead_choices(self):
         matches = get_all_bead_matches(self.bead["rgb"])
@@ -181,8 +211,8 @@ class BeadLegendEntry(BeadLabel):
         for choice in choices:
             menu.addAction(choice)
         action = menu.exec_(self.mapToGlobal(event.pos()))
-        if(action is not None):
-            action.identify()
+        if action is not None and self.bead_color_overridden is not None:
+            self.bead_color_overridden.emit(self.bead["name"], action.bead_name)
 
 
 class BeadView(QtWidgets.QGraphicsView):
