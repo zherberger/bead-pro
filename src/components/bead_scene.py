@@ -73,6 +73,7 @@ class BeadWorkflow(QtWidgets.QWidget):
         pixels = [pixels[i * width:(i + 1) * width] for i in range(height)]
         self.image_data = pixels
         self.bead_matches = self.generate_bead_matches()
+        self.bead_color_overrides = {}
         self.draw_image()
 
     def draw_image(self):
