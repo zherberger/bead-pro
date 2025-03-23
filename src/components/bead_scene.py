@@ -84,11 +84,14 @@ class BeadWorkflow(QtWidgets.QWidget):
         for row in self.image_data:
             self.bead_data.append([])
             for pixel in row:
-                match = self.bead_matches.get(get_hex_key(pixel))["name"]
-                if self.bead_color_overrides.get(match) is not None:
-                    match = self.bead_color_overrides.get(match)
+                if pixel[3] == 255:
+                    match = self.bead_matches.get(get_hex_key(pixel))["name"]
+                    if self.bead_color_overrides.get(match) is not None:
+                        match = self.bead_color_overrides.get(match)
 
-                self.bead_data[row_num].append(PERLER_BEADS_MAP[match]["rgb"])
+                    self.bead_data[row_num].append(PERLER_BEADS_MAP[match]["rgb"] + [255])
+                else:
+                    self.bead_data[row_num].append([0, 0, 0, 0])
             row_num += 1
 
         self.bead_view.draw_image(self.bead_data)
@@ -118,13 +121,13 @@ class BeadWorkflow(QtWidgets.QWidget):
 
         for row in self.image_data:
             for pixel in row:
-                rgb = pixel[0:3]
-                key = get_hex_key(rgb)
-
-                if bead_matches.get(key) is None:
-                    bead_matches[key] = {"name": get_closest_bead(rgb)["name"], "count": 1}
-                else:
-                    bead_matches[key]["count"] += 1
+                if pixel[3] == 255:
+                    rgb = pixel[0:3]
+                    key = get_hex_key(rgb)
+                    if bead_matches.get(key) is None:
+                        bead_matches[key] = {"name": get_closest_bead(rgb)["name"], "count": 1}
+                    else:
+                        bead_matches[key]["count"] += 1
 
         return bead_matches
 
@@ -225,14 +228,29 @@ class BeadView(QtWidgets.QGraphicsView):
         self.setScene(self.scene)
         self.pen = QtGui.QPen()
         self.pen.setStyle(QtCore.Qt.PenStyle.NoPen)
-        self.PIXEL_WIDTH = 30
-        self.PIXEL_HEIGHT = 30
-        self.BACKGROUND_PIXEL_WIDTH = 12
-        self.BACKGROUND_PIXEL_HEIGHT = 12
+        self.PIXEL_WIDTH = 16
+        self.PIXEL_HEIGHT = 16
+        self.BACKGROUND_PIXEL_WIDTH = 8
+        self.BACKGROUND_PIXEL_HEIGHT = 8
 
     def draw_image(self, image_data):
+        self.draw_transparency(image_data)
+
         for i in range(len(image_data)):
             for j in range(len(image_data[0])):
                 rgba = image_data[i][j]
-                self.scene.addRect(j * self.PIXEL_WIDTH, i * self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT,
-                                   self.pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
+                if rgba is not None and rgba[3] == 255:
+                    self.scene.addRect(j * self.PIXEL_WIDTH, i * self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT,
+                                       self.pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
+
+    def draw_transparency(self, image_data):
+        for i in range(2 * len(image_data)):
+            for j in range(2 * len(image_data[0])):
+                if (i + j) % 2 == 0:
+                    self.scene.addRect(j * self.BACKGROUND_PIXEL_WIDTH, i * self.BACKGROUND_PIXEL_HEIGHT,
+                                       self.BACKGROUND_PIXEL_WIDTH, self.BACKGROUND_PIXEL_HEIGHT, self.pen,
+                                       QtGui.QBrush(QtGui.QColor(200, 200, 200)))
+                else:
+                    self.scene.addRect(j * self.BACKGROUND_PIXEL_WIDTH, i * self.BACKGROUND_PIXEL_HEIGHT,
+                                       self.BACKGROUND_PIXEL_WIDTH, self.BACKGROUND_PIXEL_HEIGHT, self.pen,
+                                       QtGui.QBrush(QtGui.QColor(144, 144, 144)))
