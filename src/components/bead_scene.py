@@ -1,9 +1,11 @@
+import math
+
 from PySide6 import QtCore, QtWidgets, QtGui
 from PIL import Image
 from src.colors.color_utils import srgb_to_lab
 from src.colors.color_utils import compute_color_distance
 from src.colors.bead_colors import PERLER_BEADS, PERLER_BEADS_MAP
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 
 
 def get_hex_key(rgb):
@@ -222,35 +224,57 @@ class BeadLegendEntry(BeadLabel):
 class BeadView(QtWidgets.QGraphicsView):
     def __init__(self):
         QtWidgets.QGraphicsView.__init__(self)
-        self.setGeometry(QtCore.QRect(100, 100, 600, 250))
+        self.setGeometry(QtCore.QRect(0, 0, 600, 250))
         self.scene = QtWidgets.QGraphicsScene(self)
         self.scene.setSceneRect(QtCore.QRectF())
         self.setScene(self.scene)
         self.pen = QtGui.QPen()
         self.pen.setStyle(QtCore.Qt.PenStyle.NoPen)
+        self.pen.setWidth(2)
         self.PIXEL_WIDTH = 16
         self.PIXEL_HEIGHT = 16
         self.BACKGROUND_PIXEL_WIDTH = 8
         self.BACKGROUND_PIXEL_HEIGHT = 8
+        self.image_data = []
+        self.current_position = {}
 
     def draw_image(self, image_data):
         self.draw_transparency(image_data)
+        self.image_data = image_data
 
         for i in range(len(image_data)):
             for j in range(len(image_data[0])):
                 rgba = image_data[i][j]
+
                 if rgba is not None and rgba[3] == 255:
+                    self.pen.setStyle(QtCore.Qt.PenStyle.NoPen)
                     self.scene.addRect(j * self.PIXEL_WIDTH, i * self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT,
                                        self.pen, QtGui.QBrush(QtGui.QColor(rgba[0], rgba[1], rgba[2])))
 
+        if "x" in self.current_position:
+            x = self.current_position["x"]
+            y = self.current_position["y"]
+            rgba = image_data[y][x]
+            self.pen.setStyle(QtCore.Qt.PenStyle.SolidLine)
+            self.pen.setColor(QtGui.QColor(255 - rgba[0], 255 - rgba[1], 255 - rgba[2]))
+            self.scene.addRect(x * self.PIXEL_WIDTH, y * self.PIXEL_HEIGHT, self.PIXEL_WIDTH, self.PIXEL_HEIGHT,
+                               self.pen, QtGui.QBrush(Qt.BrushStyle.NoBrush))
+
     def draw_transparency(self, image_data):
+        self.pen.setStyle(QtCore.Qt.PenStyle.NoPen)
         for i in range(2 * len(image_data)):
             for j in range(2 * len(image_data[0])):
                 if (i + j) % 2 == 0:
-                    self.scene.addRect(j * self.BACKGROUND_PIXEL_WIDTH, i * self.BACKGROUND_PIXEL_HEIGHT,
-                                       self.BACKGROUND_PIXEL_WIDTH, self.BACKGROUND_PIXEL_HEIGHT, self.pen,
-                                       QtGui.QBrush(QtGui.QColor(200, 200, 200)))
+                    color = QtGui.QBrush(QtGui.QColor(200, 200, 200))
                 else:
-                    self.scene.addRect(j * self.BACKGROUND_PIXEL_WIDTH, i * self.BACKGROUND_PIXEL_HEIGHT,
-                                       self.BACKGROUND_PIXEL_WIDTH, self.BACKGROUND_PIXEL_HEIGHT, self.pen,
-                                       QtGui.QBrush(QtGui.QColor(144, 144, 144)))
+                    color = QtGui.QBrush(QtGui.QColor(144, 144, 144))
+                self.scene.addRect(j * self.BACKGROUND_PIXEL_WIDTH, i * self.BACKGROUND_PIXEL_HEIGHT,
+                                   self.BACKGROUND_PIXEL_WIDTH, self.BACKGROUND_PIXEL_HEIGHT, self.pen,
+                                   color)
+
+    def mousePressEvent(self, event):
+        pos = event.position()
+        x = math.floor(pos.x() / self.PIXEL_WIDTH - (self.geometry().width() / self.PIXEL_WIDTH - len(self.image_data[0])) / 2)
+        y = math.floor(pos.y() / self.PIXEL_HEIGHT - (self.geometry().height() / self.PIXEL_HEIGHT - len(self.image_data)) / 2)
+        self.current_position = {"x": x, "y": y}
+        self.draw_image(self.image_data)
